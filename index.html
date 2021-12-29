@@ -11,7 +11,7 @@
 <script src="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.js"></script>
 <style>
 body { margin: 0; padding: 0; }
-#settings { position: absolute; top: 0; left: 0; width: 20%; padding: 1em; background-color: #000000aa; color: white; border-radius: 0px 0px 25px 0px; }
+#settings { max-width: 500px; position: absolute; top: 0; left: 0; padding: 1em; background-color: #000000aa; color: white; border-radius: 0px 0px 0px 0px; }
 #map { position: absolute; top: 0; bottom: 0; width: 100%; }
 .marker {
   background-image: url('bullseye.png');
@@ -25,15 +25,27 @@ body { margin: 0; padding: 0; }
 </head>
 <body>
 <div id="map"></div>
-<div id="settings">
-  <label for="windSpeed" class="form-label" id="windSpeedLabel">Wind Speed</label>
-  <input type="range" class="form-range" min="0" max="40" id="windSpeed">
-  <label for="windDirection" class="form-label" id="windDirectionLabel">Wind Direction</label>
-  <input type="range" class="form-range" min="0" max="359" id="windDirection">
-  <label for="canopyGlideRatio" class="form-label" id="canopyGlideRatioLabel">Glide Ratio</label>
-  <input type="range" class="form-range" min="0" max="4" step="0.1" id="canopyGlideRatio">
-  <label for="canopyForwardSpeed" class="form-label" id="canopyForwardSpeedLabel">Forward Speed</label>
-  <input type="range" class="form-range" min="0" max="30" id="canopyForwardSpeed">
+<div id="settings" class="container">
+  <div class="row">
+    <div class="col">
+      <label for="windSpeed" class="form-label" id="windSpeedLabel">Wind Speed</label>
+      <input type="range" class="form-range" min="0" max="30" id="windSpeed">
+    </div>
+    <div class="col">
+      <label for="windDirection" class="form-label" id="windDirectionLabel">Wind Direction</label>
+      <input type="range" class="form-range" min="0" max="359" id="windDirection">
+    </div>
+  </div>
+  <div class="row">
+    <div class="col">
+      <label for="canopyGlideRatio" class="form-label" id="canopyGlideRatioLabel">Glide Ratio</label>
+      <input type="range" class="form-range" min="0" max="4" step="0.1" id="canopyGlideRatio">
+    </div>
+    <div class="col">
+      <label for="canopyForwardSpeed" class="form-label" id="canopyForwardSpeedLabel">Forward Speed</label>
+      <input type="range" class="form-range" min="0" max="40" id="canopyForwardSpeed">
+    </div>
+  </div>
 </div>
 <script>
 
