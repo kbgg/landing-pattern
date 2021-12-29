@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Canopy Coach</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.js"></script>
+<style>
+body { margin: 0; padding: 0; }
+#settings { position: absolute; top: 0; left: 0; width: 20%; padding: 1em; background-color: #000000aa; color: white; border-radius: 0px 0px 25px 0px; }
+#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+.marker {
+  background-image: url('bullseye.png');
+  background-size: cover;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="settings">
+  <label for="windSpeed" class="form-label" id="windSpeedLabel">Wind Speed</label>
+  <input type="range" class="form-range" min="0" max="40" id="windSpeed">
+  <label for="windDirection" class="form-label" id="windDirectionLabel">Wind Direction</label>
+  <input type="range" class="form-range" min="0" max="359" id="windDirection">
+  <label for="canopyGlideRatio" class="form-label" id="canopyGlideRatioLabel">Glide Ratio</label>
+  <input type="range" class="form-range" min="0" max="4" step="0.1" id="canopyGlideRatio">
+  <label for="canopyForwardSpeed" class="form-label" id="canopyForwardSpeedLabel">Forward Speed</label>
+  <input type="range" class="form-range" min="0" max="30" id="canopyForwardSpeed">
+</div>
+<script>
+
+  function update_settings() {
+    wind_speed = parseInt($("#windSpeed").val());
+    wind_direction = parseInt($("#windDirection").val());
+    canopy_glide_ratio = parseFloat($("#canopyGlideRatio").val());
+    canopy_forward_speed = parseInt($("#canopyForwardSpeed").val());
+
+    $("#windSpeedLabel").text("Wind Speed: " + wind_speed + " mph");
+    $("#windDirectionLabel").text("Wind Direction: " + wind_direction + "°");
+    $("#canopyGlideRatioLabel").text("Glide Ratio: " + canopy_glide_ratio);
+    $("#canopyForwardSpeedLabel").text("Forward Speed: " + canopy_forward_speed + " mph");
+
+    draw_pattern();
+  }
+
+  function degrees_to_radians(degrees) {
+    var pi = Math.PI;
+    return degrees * (pi/180);
+  }
+
+  function radians_to_degrees(radians) {
+    var pi = Math.PI;
+    return radians * (180/pi);
+  }
+
+  function feet_to_km(feet) {
+    return feet / 3280.8;
+  }
+
+  function glide_distance(groundspeed, elevation) {
+    return elevation * (canopy_glide_ratio * (groundspeed / canopy_forward_speed)); 
+  }
+
+  function point_bearing_distance(original_point, distance_feet, bearing_degrees) {
+    R = 6378.1;
+    brng = degrees_to_radians(bearing_degrees)
+    d = feet_to_km(distance_feet);
+
+    lat1 = degrees_to_radians(original_point[1]);
+    lon1 = degrees_to_radians(original_point[0]);
+
+    lat2 = Math.asin( Math.sin(lat1)*Math.cos(d/R) + Math.cos(lat1)*Math.sin(d/R)*Math.cos(brng));
+    lon2 = lon1 + Math.atan2(Math.sin(brng)*Math.sin(d/R)*Math.cos(lat1), Math.cos(d/R)-Math.sin(lat1)*Math.sin(lat2));
+    
+    return [radians_to_degrees(lon2), radians_to_degrees(lat2)];
+  }
+
+  function draw_pattern() {
+    if (landing_point == null) {
+      return;
+    }
+    wind_angle = degrees_to_radians(90);
+    base_heading = wind_direction + 90 - radians_to_degrees(Math.asin((wind_speed / canopy_forward_speed)*Math.sin(wind_angle)));
+    
+    base_ground_speed = Math.sqrt(canopy_forward_speed * canopy_forward_speed - wind_speed * wind_speed);
+
+    final_point = point_bearing_distance(landing_point, glide_distance(canopy_forward_speed - wind_speed, 300), 180 - wind_direction);
+    base_point = point_bearing_distance(final_point, glide_distance(base_ground_speed, 300), 270 - wind_direction);
+    downwind_point = point_bearing_distance(base_point, glide_distance(canopy_forward_speed + wind_speed, 300), 0 - wind_direction);
+
+
+    const marker = new mapboxgl.Marker(el).setLngLat(landing_point).addTo(map);
+
+    landing_pattern = {
+      'type': 'Feature',
+      'properties': {},
+      'geometry': {
+        'type': 'LineString',
+        'coordinates': [
+          landing_point,
+          final_point,
+          base_point,
+          downwind_point
+        ]
+      }
+    }
+
+    map.getSource('pattern').setData(landing_pattern);
+  }
+
+  $(document).ready(function(){
+    $("#windSpeed").on("input", update_settings);
+    $("#windSpeed").val(5);
+    $("#windDirection").on("input", update_settings);
+    $("#windDirection").val(180);
+    $("#canopyGlideRatio").on("input", update_settings);
+    $("#canopyGlideRatio").val(2.5);
+    $("#canopyForwardSpeed").on("input", update_settings);
+    $("#canopyForwardSpeed").val(25);
+    update_settings();
+  });
+
+  const el = document.createElement('div');
+  el.className = 'marker';
+
+
+  mapboxgl.accessToken = 'pk.eyJ1Ijoia2JnZyIsImEiOiJja3hxcG92NDAyNnlmMnJwZXZtYzc0cjF1In0.JD6Pkq154SRXAvZS27KODA';
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/kbgg/ckxqpvybp1ra215o5zu972bsa',
+    zoom: 16,
+    center: [-97.770935, 29.771502]
+  });
+
+  landing_point = null;
+
+
+  map.on('load', () => {
+    landing_pattern = {
+      'type': 'Feature',
+      'properties': {},
+      'geometry': {
+        'type': 'LineString',
+        'coordinates': [
+        ]
+      }
+    }
+
+    map.addSource('pattern', {
+      'type': 'geojson',
+      'data': landing_pattern
+    });
+    map.addLayer({
+      'id': 'pattern',
+      'type': 'line',
+      'source': 'pattern',
+      'layout': {
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      'paint': {
+        'line-color': '#ffffff',
+        'line-opacity': 0.4,
+        'line-width': 8
+      }
+    });
+  });
+
+  map.on('click', (event) => {
+    landing_point = [event.lngLat.lng, event.lngLat.lat];
+    update_settings();
+  });
+ 
+</script>
+ 
+</body>
+</html>
